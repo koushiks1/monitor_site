@@ -1,16 +1,16 @@
-name: Monitor Cron Job
+name: Website Monitor
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # runs every 30 mins (UTC)
+    - cron: "*/10 * * * *"   # every 10 mins
   workflow_dispatch:
 
 jobs:
-  run-monitor:
+  monitor:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repo
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -18,24 +18,17 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: |
-          pip install -r requirements.txt || true
+          pip install requests beautifulsoup4 python-dotenv
 
-      - name: Run Monitor Script
-        run: python monitor.py
-
-      - name: Send Email Notification
-        if: always()   # runs even if script fails
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "Monitor Job Status"
-          to: your-email@gmail.com
-          from: your-email@gmail.com
-          body: |
-            Monitor job executed.
-            Check GitHub Actions logs for details.
+      - name: Run monitor script
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+        run: |
+          python monitor.py
