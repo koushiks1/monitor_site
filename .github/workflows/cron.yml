@@ -2,7 +2,7 @@ name: Website Monitor
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # every 10 mins
+    - cron: "*/5 * * * *"   # every 5 mins
   workflow_dispatch:
 
 jobs:
