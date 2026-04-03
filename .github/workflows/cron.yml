@@ -31,4 +31,4 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
         run: |
-          python monitor.py
+          python monitor.py --force-baseline
