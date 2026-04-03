@@ -1,0 +1,41 @@
+name: Monitor Cron Job
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # runs every 30 mins (UTC)
+  workflow_dispatch:
+
+jobs:
+  run-monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt || true
+
+      - name: Run Monitor Script
+        run: python monitor.py
+
+      - name: Send Email Notification
+        if: always()   # runs even if script fails
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Monitor Job Status"
+          to: your-email@gmail.com
+          from: your-email@gmail.com
+          body: |
+            Monitor job executed.
+            Check GitHub Actions logs for details.
