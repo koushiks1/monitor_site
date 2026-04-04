@@ -12,6 +12,7 @@ MONITOR_USE_PLAYWRIGHT=1 and install Playwright (see requirements.txt).
 
 from __future__ import annotations
 
+import requests
 import argparse
 import hashlib
 import json
@@ -52,6 +53,18 @@ def _env_int(name: str, default: int = 0) -> int:
     except ValueError:
         return default
 
+def send_slack(message: str):
+    webhook = os.environ.get("SLACK_WEBHOOK_URL")
+
+    if not webhook:
+        print("Slack not configured")
+        return
+
+    payload = {
+        "text": message
+    }
+
+    requests.post(webhook, json=payload)
 
 def _text(el) -> str:
     from bs4 import BeautifulSoup
