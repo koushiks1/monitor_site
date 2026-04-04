@@ -237,20 +237,23 @@ def send_email(cfg: SmtpConfig, subject: str, body_text: str) -> None:
     msg["Subject"] = subject
     msg["From"] = cfg.mail_from
 
-    # ✅ Split multiple emails into list
+    # ✅ Split multiple emails
     to_list = [email.strip() for email in cfg.mail_to.split(",") if email.strip()]
-
-    # ✅ Set proper header (for display)
     msg["To"] = ", ".join(to_list)
+
+    # 🔥 Mark as HIGH PRIORITY
+    msg["X-Priority"] = "1"          # 1 = High, 3 = Normal, 5 = Low
+    msg["X-MSMail-Priority"] = "High"
+    msg["Importance"] = "High"
 
     msg.attach(MIMEText(body_text, "plain", "utf-8"))
 
     with smtplib.SMTP(cfg.host, cfg.port, timeout=60) as server:
         server.starttls()
         server.login(cfg.user, cfg.password)
-
-        # ✅ Send to multiple recipients
         server.sendmail(cfg.mail_from, to_list, msg.as_string())
+
+    print(f"High priority email sent to: {', '.join(to_list)}")
 
 
 def _state_redis_key() -> str:
