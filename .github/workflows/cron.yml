@@ -33,4 +33,10 @@ jobs:
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
         run: |
-          python monitor.py --url https://nutriibytz.store/
+          end=$((SECONDS+300))   # 300 sec = 5 mins
+
+          while [ $SECONDS -lt $end ]; do
+            echo "Running at $(date)"
+            python monitor.py
+            sleep 60   # wait 1 minute between checks
+          done
