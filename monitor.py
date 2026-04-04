@@ -429,6 +429,7 @@ def run_once(
         return MonitorResult(0, "dry_run_change", subject)
     if smtp:
         send_email(smtp, subject, body)
+        send_slack(f"{subject}\n\n{body[:1000]}")
         print(f"Email sent to {smtp.mail_to}")
     else:
         print("Change detected but SMTP is not configured. Set SMTP_* and EMAIL_TO.", file=sys.stderr)
