@@ -236,13 +236,21 @@ def send_email(cfg: SmtpConfig, subject: str, body_text: str) -> None:
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = cfg.mail_from
-    msg["To"] = cfg.mail_to
+
+    # ✅ Split multiple emails into list
+    to_list = [email.strip() for email in cfg.mail_to.split(",") if email.strip()]
+
+    # ✅ Set proper header (for display)
+    msg["To"] = ", ".join(to_list)
+
     msg.attach(MIMEText(body_text, "plain", "utf-8"))
 
     with smtplib.SMTP(cfg.host, cfg.port, timeout=60) as server:
         server.starttls()
         server.login(cfg.user, cfg.password)
-        server.sendmail(cfg.mail_from, [cfg.mail_to], msg.as_string())
+
+        # ✅ Send to multiple recipients
+        server.sendmail(cfg.mail_from, to_list, msg.as_string())
 
 
 def _state_redis_key() -> str:
