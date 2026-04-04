@@ -61,7 +61,7 @@ def send_slack(message: str):
         return
 
     payload = {
-        "text": message
+    "text": f"<!channel> 🚨 {subject}\n\n{body[:500]}"
     }
 
     requests.post(webhook, json=payload)
