@@ -263,6 +263,7 @@ def uses_upstash_state() -> bool:
 
 def _upstash_get_json(base_url: str, token: str, key: str) -> dict[str, Any]:
     import requests
+    import json
 
     k = quote(key, safe="")
     r = requests.get(
@@ -272,30 +273,36 @@ def _upstash_get_json(base_url: str, token: str, key: str) -> dict[str, Any]:
     )
     r.raise_for_status()
     out = r.json()
+
     res = out.get("result")
+
     if res is None:
         return {}
-    if not isinstance(res, str):
-        return {}
-    try:
-        return json.loads(res)
-    except json.JSONDecodeError:
-        return {}
+
+    # 🔥 FIX: convert string → dict
+    if isinstance(res, str):
+        try:
+            return json.loads(res)
+        except json.JSONDecodeError:
+            return {}
+
+    return {}
 
 
 def _upstash_set_json(base_url: str, token: str, key: str, data: dict[str, Any]) -> None:
     import requests
+    import json
 
     k = quote(key, safe="")
     raw = json.dumps(data, ensure_ascii=False)
-    body = json.dumps(raw)
+
     r = requests.post(
         f"{base_url.rstrip('/')}/set/{k}",
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         },
-        data=body.encode("utf-8"),
+        data=raw.encode("utf-8"),   # ✅ no double encoding
         timeout=30,
     )
     r.raise_for_status()
