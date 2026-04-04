@@ -38,6 +38,6 @@ jobs:
 
           while [ $SECONDS -lt $end ]; do
             echo "Running at $(date)"
-            python monitor.py --url https://shop.royalchallengers.com/login
+            python monitor.py
             sleep 60   # wait 1 minute between checks
           done
