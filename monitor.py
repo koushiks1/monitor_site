@@ -61,10 +61,11 @@ def send_slack(message: str):
         return
 
     payload = {
-    "text": f"<!channel> 🚨 {subject}\n\n{body[:500]}"
+        "text": f"<!channel> 🚨 {message[:500]}"
     }
 
-    requests.post(webhook, json=payload)
+    response = requests.post(webhook, json=payload)
+    print("Slack status:", response.status_code)
 
 def _text(el) -> str:
     from bs4 import BeautifulSoup
