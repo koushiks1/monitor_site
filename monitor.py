@@ -385,6 +385,11 @@ def run_once(
         html = fetch_html_http(url, timeout)
 
     rows, _digest = build_snapshot(html, root_selector)
+    print("----- DEBUG: SNAPSHOT ELEMENTS -----")
+    for r in rows[:20]:   # limit to first 20 to avoid huge logs
+        print("TEXT:", r.get("text"))
+    print("----- END DEBUG -----")
+    send_slack("DEBUG:\n" + "\n".join([r.get("text", "") for r in rows[:20]]))
     fp = fingerprint(rows)
     state = load_state(state_path)
     prev_fp = state.get("fingerprint")
