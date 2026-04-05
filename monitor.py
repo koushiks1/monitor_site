@@ -165,6 +165,7 @@ def fetch_html_playwright(url: str, root_selector: str | None, wait_ms: int, tim
         ) from e
 
     with sync_playwright() as p:
+        page.screenshot(path="debug.png", full_page=True)
         browser = p.chromium.launch(headless=True)
         try:
             page = browser.new_page(user_agent=USER_AGENT)
