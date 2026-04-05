@@ -27,12 +27,6 @@ jobs:
           pip install playwright
           playwright install chromium
           
-      - name: Upload debug screenshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-image
-          path: debug.png
-          
       - name: Run monitor script
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -52,3 +46,9 @@ jobs:
             python monitor.py --use-playwright --root-selector "div[class*='chakra-stack']"
             sleep 60   # wait 1 minute between checks
           done
+
+      - name: Upload debug screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-image
+          path: debug.png
