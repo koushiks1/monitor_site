@@ -191,8 +191,8 @@ def fetch_html_playwright(url: str, root_selector: str | None, wait_ms: int, tim
 
                         print("✅ RCB match tile found")
 
-                        if "sold out" in text_lower:
-                            return {"status": "sold_out", "text": text}
+                        # if "sold out" in text_lower:
+                            # return {"status": "sold_out", "text": text}
 
                         return {"status": "available", "text": text}
 
