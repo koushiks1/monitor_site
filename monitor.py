@@ -190,8 +190,9 @@ def fetch_html_playwright(url: str, root_selector: str | None, wait_ms: int, tim
                 except Exception:
                     pass
 
-                handle = page.query_selector(root_selector)
-                if handle:
+                handles = page.query_selector_all(root_selector)
+                if handles:
+                    handle = handles[-1]   # 🔥 pick LAST occurrence (usually tickets)
                     return handle.evaluate("el => el.outerHTML")
 
             # fallback
