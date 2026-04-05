@@ -43,6 +43,6 @@ jobs:
           end=$((SECONDS+50))   # 300 sec = 5 mins
           while [ $SECONDS -lt $end ]; do
             echo "Running at $(date)"
-            python monitor.py --use-playwright
+            python monitor.py --use-playwright --root-selector "div[class*='chakra-stack']"
             sleep 60   # wait 1 minute between checks
           done
