@@ -431,7 +431,6 @@ def run_once(
           send_slack(msg)
           if smtp:
               send_email(smtp, "🚨 RCB Tickets Available!", msg)
-          return MonitorResult(0, "rcb_available", msg)
           else:
               print("⚠️ Match detected but no booking info found")
               return MonitorResult(0, "no_ticket_info", "")
