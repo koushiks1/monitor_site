@@ -191,6 +191,19 @@ def fetch_html_playwright(url: str, root_selector: str | None, wait_ms: int, tim
                     pass
 
                 handles = page.query_selector_all(root_selector)
+                print(f"Total chakra-stack elements found: {len(handles)}")
+
+                debug_texts = []
+                
+                for i, h in enumerate(handles):
+                    try:
+                        text = h.inner_text()
+                        print(f"\n--- ELEMENT {i} ---")
+                        print(text[:300])   # limit output
+                        debug_texts.append(f"\n--- ELEMENT {i} ---\n{text[:300]}")
+                    except Exception as e:
+                        print(f"Error reading element {i}: {e}")
+                send_slack("SELECTOR DEBUG:\n" + "\n".join(debug_texts[:5]))
                 if handles:
                     handle = handles[-1]   # 🔥 pick LAST occurrence (usually tickets)
                     return handle.evaluate("el => el.outerHTML")
@@ -417,7 +430,6 @@ def run_once(
            for k in ["rcb", "csk", "vs", "ticket", "buy"])
     ]
 
-    send_slack("MATCH DEBUG:\n" + "\n".join([r.get("text", "") for r in important_rows[:20]]) if important_rows else "❌ No match data")
     fp = fingerprint(rows)
     state = load_state(state_path)
     prev_fp = state.get("fingerprint")
