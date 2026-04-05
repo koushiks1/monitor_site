@@ -418,51 +418,23 @@ def run_once(
 
     # 🔹 Detect RCB matches
     if "royal challengers" in html_lower:
-
-        print("✅ RCB match detected")
-
-        # Extract useful snippet
-        start_idx = html_lower.find("royal challengers")
-        snippet = html[start_idx:start_idx + 800]
-
-        snippet_lower = snippet.lower()
-
-        # ❌ If sold out → ignore
-        if "sold out" in snippet_lower:
-            print("❌ Tickets still sold out")
-            return MonitorResult(0, "sold_out", "")
-
-        # 🚨 If tickets available
-        if any(k in snippet_lower for k in ["buy", "book", "tickets"]):
-
-            # Avoid duplicate alerts
-            if snippet == last_alert:
-                print("⚠️ Duplicate alert skipped")
-                return MonitorResult(0, "duplicate", "")
-
-            msg = f"🚨 RCB MATCH TICKETS AVAILABLE!\n\n{snippet}"
-
-            print(msg)
-
-            # 🔔 Slack
-            send_slack(msg)
-
-            # 📧 Email
-            if smtp:
-                send_email(smtp, "🚨 RCB Tickets Available!", msg)
-
-            # Save state
-            save_state(state_path, {
-                "last_alert": snippet,
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            })
-
-            return MonitorResult(0, "rcb_available", msg)
-
-        else:
-            print("⚠️ Match detected but no booking info found")
-            return MonitorResult(0, "no_ticket_info", "")
-
+      print("✅ RCB match detected")
+      start_idx = html_lower.find("royal challengers")
+      snippet = html[start_idx:start_idx + 800]
+      snippet_lower = snippet.lower()
+      if "sold out" in snippet_lower:
+          print("❌ Tickets still sold out")
+          return MonitorResult(0, "sold_out", "")
+      # 🚨 THIS is the correct condition
+      if "sold out" not in snippet_lower:
+          msg = f"🚨 RCB MATCH TICKETS AVAILABLE!\n\n{snippet}"
+          send_slack(msg)
+          if smtp:
+              send_email(smtp, "🚨 RCB Tickets Available!", msg)
+          return MonitorResult(0, "rcb_available", msg)
+          else:
+              print("⚠️ Match detected but no booking info found")
+              return MonitorResult(0, "no_ticket_info", "")
     # ❌ No RCB match
     print("No RCB match found")
     return MonitorResult(0, "no_match", "")
