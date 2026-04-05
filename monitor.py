@@ -118,7 +118,7 @@ def _sibling_tag_index(el) -> int:
 
 def collect_snapshots(soup) -> list[dict[str, Any]]:
     """Collect interactive and high-signal elements (buttons, links, inputs, etc.)."""
-    selectors = ["button", "a[href]", "input", "select", "textarea", "[role='button']"]
+    selectors = ["button","a[href]","input","select","textarea","role='button']","div","span"]
     seen_set: set[int] = set()
     rows: list[dict[str, Any]] = []
 
@@ -403,11 +403,21 @@ def run_once(
         html = fetch_html_http(url, timeout)
 
     rows, _digest = build_snapshot(html, root_selector)
+    rows = [
+    r for r in rows
+    if r.get("text") and len(r.get("text").strip()) > 3
+    ]
     print("----- DEBUG: SNAPSHOT ELEMENTS -----")
     for r in rows[:20]:   # limit to first 20 to avoid huge logs
         print("TEXT:", r.get("text"))
     print("----- END DEBUG -----")
-    send_slack("DEBUG:\n" + "\n".join([r.get("text", "") for r in rows[:20]]))
+    important_rows = [
+    r for r in rows
+    if any(k in r.get("text", "").lower()
+           for k in ["rcb", "csk", "vs", "ticket", "buy"])
+    ]
+
+    send_slack("MATCH DEBUG:\n" + "\n".join([r.get("text", "") for r in important_rows[:20]]) if important_rows else "❌ No match data")
     fp = fingerprint(rows)
     state = load_state(state_path)
     prev_fp = state.get("fingerprint")
