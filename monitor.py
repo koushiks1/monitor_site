@@ -192,14 +192,12 @@ def fetch_html_playwright(url: str, root_selector: str | None, wait_ms: int, tim
 
                 handles = page.query_selector_all(root_selector)
                 for h in handles:
-                try:
+                  try:
                     text = h.inner_text().lower()
-            
                     # 🎯 Any RCB match
                     if "royal challengers" in text:
                         return h.evaluate("el => el.outerHTML")
-            
-                except:
+                  except:
                     continue
 
             # fallback
