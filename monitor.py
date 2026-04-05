@@ -118,7 +118,7 @@ def _sibling_tag_index(el) -> int:
 
 def collect_snapshots(soup) -> list[dict[str, Any]]:
     """Collect interactive and high-signal elements (buttons, links, inputs, etc.)."""
-    selectors = ["button","a[href]","input","select","textarea","role='button']","div","span"]
+    selectors = ["button","a[href]","input","select","textarea",'[role="button"]',"div","span"]
     seen_set: set[int] = set()
     rows: list[dict[str, Any]] = []
 
