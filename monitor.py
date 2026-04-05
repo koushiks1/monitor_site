@@ -165,11 +165,11 @@ def fetch_html_playwright(url: str, root_selector: str | None, wait_ms: int, tim
         ) from e
 
     with sync_playwright() as p:
-        page.screenshot(path="debug.png", full_page=True)
         browser = p.chromium.launch(headless=True)
         try:
             page = browser.new_page(user_agent=USER_AGENT)
             page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+            page.screenshot(path="debug.png", full_page=True)
             if wait_ms > 0:
                 page.wait_for_timeout(wait_ms)
             if root_selector:
