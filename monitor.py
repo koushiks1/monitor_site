@@ -156,7 +156,7 @@ def fetch_html_http(url: str, timeout: float) -> str:
     return r.text
 
 
-def fetch_html_playwright(url: str, root_selector: str | None, wait_ms: int, timeout_ms: int) -> str:
+def fetch_html_playwright(url: str, root_selector: str | None, wait_ms: int, timeout_ms: int):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError as e:
@@ -169,39 +169,37 @@ def fetch_html_playwright(url: str, root_selector: str | None, wait_ms: int, tim
         try:
             page = browser.new_page(user_agent=USER_AGENT)
 
-            # Load page
             page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
 
-            # ⏱️ Wait for JS to load content
             if wait_ms > 0:
                 page.wait_for_timeout(wait_ms)
 
-            # 🔥 Scroll to trigger lazy loading
             page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             page.wait_for_timeout(3000)
 
-            # 📸 Take screenshot AFTER everything loads
-            # page.screenshot(path="debug.png", full_page=True)
+            handles = page.query_selector_all("div[class*='chakra-stack']")
 
-            # 🎯 Try to capture only target section
-            if root_selector:
+            print(f"Scanning {len(handles)} elements...")
+
+            for h in handles:
                 try:
-                    page.wait_for_selector(root_selector, timeout=min(10_000, timeout_ms))
-                except Exception:
-                    pass
+                    text = h.inner_text()
+                    text_lower = text.lower()
 
-                handles = page.query_selector_all(root_selector)
-                for h in handles:
-                  try:
-                    text = h.inner_text().lower()
-                    # 🎯 Any RCB match
-                    if "royal challengers" in text:
-                        return h.evaluate("el => el.outerHTML")
-                  except:
+                    # 🎯 Match tile detection
+                    if "royal challengers" in text_lower and "vs" in text_lower:
+
+                        print("✅ RCB match tile found")
+
+                        if "sold out" in text_lower:
+                            return {"status": "sold_out", "text": text}
+
+                        return {"status": "available", "text": text}
+
+                except Exception:
                     continue
 
-            # fallback
-            return page.content()
+            return {"status": "no_match", "text": ""}
 
         finally:
             browser.close()
@@ -404,38 +402,62 @@ def run_once(
 
     timeout_ms = int(timeout * 1000)
 
-    # 🔹 Fetch HTML
-    if use_playwright:
-        html = fetch_html_playwright(url, root_selector, wait_ms, timeout_ms)
-    else:
-        html = fetch_html_http(url, timeout)
+    # 🔹 Get result from Playwright
+    result = fetch_html_playwright(url, root_selector, wait_ms, timeout_ms)
 
-    html_lower = html.lower()
+    status = result.get("status")
+    text = result.get("text", "")
 
-    # 🔹 Load state
+    print(f"Status: {status}")
+
+    # 🔹 Load state (Upstash or local)
     state = load_state(state_path)
-    last_alert = state.get("last_alert", "")
+    last_status = state.get("last_status", "")
 
-    # 🔹 Detect RCB matches
-    if "royal challengers" in html_lower:
-      print("✅ RCB match detected")
-      start_idx = html_lower.find("royal challengers")
-      snippet = html[start_idx:start_idx + 800]
-      snippet_lower = snippet.lower()
-      if "sold out" in snippet_lower:
-          print("❌ Tickets still sold out")
-          return MonitorResult(0, "sold_out", "")
-      # 🚨 THIS is the correct condition
-      if "sold out" not in snippet_lower:
-          msg = f"🚨 RCB MATCH TICKETS AVAILABLE!\n\n{snippet}"
-          send_slack(msg)
-          if smtp:
-              send_email(smtp, "🚨 RCB Tickets Available!", msg)
-          else:
-              print("⚠️ Match detected but no booking info found")
-              return MonitorResult(0, "no_ticket_info", "")
-    # ❌ No RCB match
+    # ❌ SOLD OUT → no alert
+    if status == "sold_out":
+        print("❌ Tickets still sold out")
+
+        # Update state
+        save_state(state_path, {
+            "last_status": "sold_out"
+        })
+
+        return MonitorResult(0, "sold_out", "")
+
+    # 🚨 AVAILABLE → alert
+    if status == "available":
+
+        # ⚠️ Avoid duplicate alerts
+        if last_status == "available":
+            print("⚠️ Already alerted (skipping)")
+            return MonitorResult(0, "duplicate", "")
+
+        msg = f"🚨 RCB MATCH TICKETS AVAILABLE!\n\n{text[:500]}"
+        print(msg)
+
+        # 🔔 Slack
+        send_slack(msg)
+
+        # 📧 Email
+        if smtp:
+            send_email(smtp, "🚨 RCB Tickets Available!", msg)
+
+        # Save state
+        save_state(state_path, {
+            "last_status": "available",
+            "last_text": text[:500]
+        })
+
+        return MonitorResult(0, "rcb_available", msg)
+
+    # ❌ No match
     print("No RCB match found")
+
+    save_state(state_path, {
+        "last_status": "no_match"
+    })
+
     return MonitorResult(0, "no_match", "")
 
 
