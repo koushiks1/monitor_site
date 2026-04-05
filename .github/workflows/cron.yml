@@ -21,7 +21,12 @@ jobs:
       - name: Install dependencies
         run: |
           pip install requests beautifulsoup4 python-dotenv
-
+          
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          playwright install chromium
+          
       - name: Run monitor script
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -33,11 +38,11 @@ jobs:
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        
         run: |
           end=$((SECONDS+50))   # 300 sec = 5 mins
-
           while [ $SECONDS -lt $end ]; do
             echo "Running at $(date)"
-            python monitor.py
+            python monitor.py --use-playwright
             sleep 60   # wait 1 minute between checks
           done
