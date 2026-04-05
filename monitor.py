@@ -181,7 +181,7 @@ def fetch_html_playwright(url: str, root_selector: str | None, wait_ms: int, tim
             page.wait_for_timeout(3000)
 
             # 📸 Take screenshot AFTER everything loads
-            page.screenshot(path="debug.png", full_page=True)
+            # page.screenshot(path="debug.png", full_page=True)
 
             # 🎯 Try to capture only target section
             if root_selector:
@@ -191,22 +191,16 @@ def fetch_html_playwright(url: str, root_selector: str | None, wait_ms: int, tim
                     pass
 
                 handles = page.query_selector_all(root_selector)
-                print(f"Total chakra-stack elements found: {len(handles)}")
-
-                debug_texts = []
-                
-                for i, h in enumerate(handles):
-                    try:
-                        text = h.inner_text()
-                        print(f"\n--- ELEMENT {i} ---")
-                        print(text[:300])   # limit output
-                        debug_texts.append(f"\n--- ELEMENT {i} ---\n{text[:300]}")
-                    except Exception as e:
-                        print(f"Error reading element {i}: {e}")
-                send_slack("SELECTOR DEBUG:\n" + "\n".join(debug_texts[:5]))
-                if handles:
-                    handle = handles[-1]   # 🔥 pick LAST occurrence (usually tickets)
-                    return handle.evaluate("el => el.outerHTML")
+                for h in handles:
+                try:
+                    text = h.inner_text().lower()
+            
+                    # 🎯 Any RCB match
+                    if "royal challengers" in text:
+                        return h.evaluate("el => el.outerHTML")
+            
+                except:
+                    continue
 
             # fallback
             return page.content()
@@ -409,81 +403,71 @@ def run_once(
     dry_run: bool,
     force_baseline: bool,
 ) -> MonitorResult:
+
     timeout_ms = int(timeout * 1000)
+
+    # 🔹 Fetch HTML
     if use_playwright:
         html = fetch_html_playwright(url, root_selector, wait_ms, timeout_ms)
     else:
         html = fetch_html_http(url, timeout)
 
-    rows, _digest = build_snapshot(html, root_selector)
-    rows = [
-    r for r in rows
-    if r.get("text") and len(r.get("text").strip()) > 3
-    ]
-    print("----- DEBUG: SNAPSHOT ELEMENTS -----")
-    for r in rows[:20]:   # limit to first 20 to avoid huge logs
-        print("TEXT:", r.get("text"))
-    print("----- END DEBUG -----")
-    important_rows = [
-    r for r in rows
-    if any(k in r.get("text", "").lower()
-           for k in ["rcb", "csk", "vs", "ticket", "buy"])
-    ]
+    html_lower = html.lower()
 
-    fp = fingerprint(rows)
+    # 🔹 Load state
     state = load_state(state_path)
-    prev_fp = state.get("fingerprint")
-    prev_rows = state.get("rows")
+    last_alert = state.get("last_alert", "")
 
-    host = urlparse(url).netloc or url
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    # 🔹 Detect RCB matches
+    if "royal challengers" in html_lower:
 
-    if prev_fp is None or force_baseline:
-        save_state(state_path, {"fingerprint": fp, "rows": rows, "url": url, "updated_at": ts})
-        msg = f"Baseline saved ({len(rows)} elements). fingerprint={fp[:16]}…"
-        print(msg)
-        return MonitorResult(0, "baseline", msg)
+        print("✅ RCB match detected")
 
-    if fp == prev_fp:
-        msg = f"No change. fingerprint={fp[:16]}…"
-        print(msg)
-        return MonitorResult(0, "no_change", msg)
+        # Extract useful snippet
+        start_idx = html_lower.find("royal challengers")
+        snippet = html[start_idx:start_idx + 800]
 
-    diff_text = ""
-    if isinstance(prev_rows, list):
-        diff_text = diff_snapshots(prev_rows, rows)
-    if len(diff_text) > 120_000:
-        diff_text = diff_text[:120_000] + "\n… (truncated)"
+        snippet_lower = snippet.lower()
 
-    body = (
-        f"Page change detected\n\n"
-        f"URL: {url}\n"
-        f"Time: {ts}\n"
-        f"Previous fingerprint: {prev_fp}\n"
-        f"Current fingerprint:  {fp}\n\n"
-        f"--- JSON diff (interactive elements) ---\n"
-        f"{diff_text or '(no structured diff; row shape may have changed)'}\n"
-    )
+        # ❌ If sold out → ignore
+        if "sold out" in snippet_lower:
+            print("❌ Tickets still sold out")
+            return MonitorResult(0, "sold_out", "")
 
-    subject = f"[Site monitor] Change on {host}"
+        # 🚨 If tickets available
+        if any(k in snippet_lower for k in ["buy", "book", "tickets"]):
 
-    if dry_run:
-        print(subject)
-        print(body[:4000])
-        if len(body) > 4000:
-            print("…")
-        return MonitorResult(0, "dry_run_change", subject)
-    if smtp:
-        send_email(smtp, subject, body)
-        send_slack(f"{subject}\n\n{body[:1000]}")
-        print(f"Email sent to {smtp.mail_to}")
-    else:
-        print("Change detected but SMTP is not configured. Set SMTP_* and EMAIL_TO.", file=sys.stderr)
-        print(body[:8000], file=sys.stderr)
-        return MonitorResult(2, "no_smtp", "SMTP not configured on change")
+            # Avoid duplicate alerts
+            if snippet == last_alert:
+                print("⚠️ Duplicate alert skipped")
+                return MonitorResult(0, "duplicate", "")
 
-    save_state(state_path, {"fingerprint": fp, "rows": rows, "url": url, "updated_at": ts})
-    return MonitorResult(0, "emailed", smtp.mail_to)
+            msg = f"🚨 RCB MATCH TICKETS AVAILABLE!\n\n{snippet}"
+
+            print(msg)
+
+            # 🔔 Slack
+            send_slack(msg)
+
+            # 📧 Email
+            if smtp:
+                send_email(smtp, "🚨 RCB Tickets Available!", msg)
+
+            # Save state
+            save_state(state_path, {
+                "last_alert": snippet,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            })
+
+            return MonitorResult(0, "rcb_available", msg)
+
+        else:
+            print("⚠️ Match detected but no booking info found")
+            return MonitorResult(0, "no_ticket_info", "")
+
+    # ❌ No RCB match
+    print("No RCB match found")
+    return MonitorResult(0, "no_match", "")
 
 
 def main() -> int:
