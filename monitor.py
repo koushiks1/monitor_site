@@ -168,19 +168,35 @@ def fetch_html_playwright(url: str, root_selector: str | None, wait_ms: int, tim
         browser = p.chromium.launch(headless=True)
         try:
             page = browser.new_page(user_agent=USER_AGENT)
+
+            # Load page
             page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
-            page.screenshot(path="debug.png", full_page=True)
+
+            # ⏱️ Wait for JS to load content
             if wait_ms > 0:
                 page.wait_for_timeout(wait_ms)
+
+            # 🔥 Scroll to trigger lazy loading
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            page.wait_for_timeout(3000)
+
+            # 📸 Take screenshot AFTER everything loads
+            page.screenshot(path="debug.png", full_page=True)
+
+            # 🎯 Try to capture only target section
             if root_selector:
                 try:
                     page.wait_for_selector(root_selector, timeout=min(10_000, timeout_ms))
                 except Exception:
                     pass
+
                 handle = page.query_selector(root_selector)
                 if handle:
                     return handle.evaluate("el => el.outerHTML")
+
+            # fallback
             return page.content()
+
         finally:
             browser.close()
 
